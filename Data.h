@@ -7,7 +7,7 @@
 
 struct stuDict
 {
-	CString _class_name;
+	char _class_name;
 	std::vector<CString> _names;
 };
 typedef std::vector<stuDict*> Dicts;
@@ -20,6 +20,9 @@ public:
 	~CData();
 	//读取函数
 	void ReadFile();
+	//保存数据到文件中，写函数
+	void WriteFile(CString path);
+	void WriteFile();
 	//查找函数,第二个参数用来指定B,C,D,E...等类别
 	int Find(char type, CString s, int& tIndex, int& sIndex);
 	//删除函数
@@ -34,7 +37,6 @@ public:
 	CString GetFilePath();
 	//设置文件路径
 	void SetFilePath(CString path);
-private:
 	//用于将数字index转换为迭代器,供类内函数使用
 	std::vector<CString>::iterator GetItr(int index);
 	//查询_names容器中与参数相同的字符串的位置，无则返回false
@@ -43,7 +45,6 @@ private:
 	int FindTypePos(char type);
 private:
 	Dicts m_vDicts;							//存储studicts指针的vector容器
-	bool isChanged;							//数据是否被修改的标志，应在实例化时置为false（即在构造函数的初始化列表中）
 	CString FilePath;						//存储要打开的文件的路径
-
+	bool isChanged;							//数据是否被改变的标志
 };
