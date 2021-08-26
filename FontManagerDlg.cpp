@@ -8,8 +8,7 @@
 #include "afxdialogex.h"
 
 #include "MyIsExit.h"
-#include "AppData.h"
-#include "FontControl.h"
+
 #include "InfoCtrl.h"
 
 #include <vector>
@@ -113,7 +112,10 @@ BEGIN_MESSAGE_MAP(CFontManagerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_RADIO_D, &CFontManagerDlg::OnBnClickedRadioD)
 	ON_BN_CLICKED(IDC_RADIO_All, &CFontManagerDlg::OnBnClickedRadioAll)	// 单击单选框 全部
 
-	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_Left, &CFontManagerDlg::OnLvnItemchangedListLeft)	// 更改列表框选项
+	// ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_Left, &CFontManagerDlg::OnLvnItemchangedListLeft)	// 更改列表框选项
+	//ON_BN_CLICKED(IDC_LIST_Left, &CFontManagerDlg::OnNMClickListLeft)	// 加入字库按钮
+	ON_NOTIFY(NM_CLICK, IDC_LIST_Left, &CFontManagerDlg::OnNMClickListLeft)	// 单击列表框选项
+	ON_NOTIFY(NM_CLICK, IDC_LIST_Right, &CFontManagerDlg::OnNMClickListRight)
 	ON_BN_CLICKED(IDC_BUTTON_Add, &CFontManagerDlg::OnBnClickedButtonAdd)	// 加入字库按钮
 	ON_BN_CLICKED(IDC_BUTTON_Delete, &CFontManagerDlg::OnBnClickedButtonDelete)	// 删除字库按钮
 	ON_BN_CLICKED(IDC_BUTTON_Save, &CFontManagerDlg::OnBnClickedButtonSave)	// 保存按钮
@@ -156,19 +158,19 @@ BOOL CFontManagerDlg::OnInitDialog()
 	// staAppData.ReadzikuTxt();
 
 	// 复选框初始不可用
-	m_Double_CheckB.EnableWindow(FALSE);
-	m_Double_CheckC.EnableWindow(FALSE);
-	m_Double_CheckD.EnableWindow(FALSE);
-
+	CantUseDoubleCheck();
 	// 单选初始不可用，无默认选项
-	m_Radio_B.EnableWindow(FALSE);
-	m_Radio_C.EnableWindow(FALSE);
-	m_Radio_D.EnableWindow(FALSE);
-	m_Radio_All.EnableWindow(FALSE);
+	CantUseOneCheck();
 
 	// 初始显示 B 类字库
-	strFontkey.Format(_T("B"));
-	OnBnClickedButtonB();
+	CString strKey ;	//声明索引
+	strKey.Format(_T("B"));
+
+	// 记录插入的是B的内容
+	strFontkey = strKey;
+
+	// 字库内容插入列表
+	InserItemFont(strKey);
 
 	// 初始默认保存按钮为灰
 	GetDlgItem(IDC_BUTTON_Save)->EnableWindow(FALSE);
@@ -230,7 +232,8 @@ HCURSOR CFontManagerDlg::OnQueryDragIcon()
 void CFontManagerDlg::InserItemFont(CString strKey)
 {
 	// 先判断列表是否有内容
-	int nItem = m_List_Left.GetItemCount();	// 列表中数据的数量
+	int nItem = m_List_Left.GetItemCount();	// 左列表中数据的数量
+	int nItemRight = m_List_Right.GetItemCount();	// 右列表中数据的数量
 	int nSize = 0;
 	std::vector<CString> FontList;	//声明容器
 	//FontList pfontList;
@@ -244,32 +247,39 @@ void CFontManagerDlg::InserItemFont(CString strKey)
 		MessageBox(_T("该字库无内容！！！"));
 		return;
 	}
-	if ( nItem != 0)
+	if ( nItem != FALSE)
 	{
 		// nSize += nItem;
 
 		// 将字库内容插入后面
-		if (nItem < 15)	// 原先内容小于15
+		if (nItem < 15 && (nItem + nSize) < 15)	// 原先内容小于15,且总和小于15
 		{
-			for (int i = nItem; i < 15; i++)	// 先插满15
+			for (int i = nItem; i < (nItem + nSize); i++)	// 先插满15
 			{
 				int j = 0;
 				m_List_Left.InsertItem(i, FontList.at(j));	
 				j++;
 			}
-			for (int i = 0; i < (nSize-nItem); i++)	// 再将剩余的插入右侧
+		}
+		else if (nItem < 15 && (nItem + nSize) > 15)	// 原先内容小于15,且总和大于15
+		{
+			int j = 0;
+			for (int i = nItem; i < 15; i++)	// 先插满15
 			{
-				int j = 15 - nItem;
+				m_List_Left.InsertItem(i, FontList.at(j));	
+				j++;
+			}
+			for (int i = 0; i < (nSize + nItem -15); i++)	// 再将剩余的插入右侧
+			{
 				m_List_Right.InsertItem(i, FontList.at(j));
 				j++;
 			}
 		}
-		
-		if (nItem >= 15)	// 若大于15个，把剩余内容插入到右边
+		else if (nItem == 15 && nItemRight > 0)	// 若大于15个，把剩余内容插入到右边
 		{
-			for (int i = (nItem-15); i < nSize; i++)
+			int j = 0;
+			for (int i = nItemRight; i < nSize; i++)
 			{
-				int j = 0;
 				m_List_Right.InsertItem(i, FontList.at(j));
 				j++;
 			}
@@ -277,27 +287,30 @@ void CFontManagerDlg::InserItemFont(CString strKey)
 	}
 	
 
-	// 如果列表框无内容，将字库内容的前15个插入左边
-	if (nSize < 15)
+	// 如果列表框无内容，将字库小于15个插入左边
+	else if (nItem == FALSE)
 	{
-		for (int i = 0; i < nSize; i++)
+		if (nSize < 15)
 		{
-			m_List_Left.InsertItem(i, FontList.at(i));	
-		}
-	}
-	
-	if (nSize >= 15)	// 若大于15个，前15个插入左边,剩余内容插入到右边
-	{
-		for (int i = 0; i < 15; i++)
-		{
-			m_List_Left.InsertItem(i, FontList.at(i));	
+			for (int i = 0; i < nSize; i++)
+			{
+				m_List_Left.InsertItem(i, FontList.at(i));	
+			}
 		}
 
-		for (int j = 15; j < nSize; j++)
+		if (nSize >= 15)	// 若大于15个，前15个插入左边,剩余内容插入到右边
 		{
-			int k = 0;
-			m_List_Right.InsertItem(k, FontList.at(j));
-			k++;
+			for (int i = 0; i < 15; i++)
+			{
+				m_List_Left.InsertItem(i, FontList.at(i));	
+			}
+
+			for (int j = 15; j < nSize; j++)
+			{
+				int k = 0;
+				m_List_Right.InsertItem(k, FontList.at(j));
+				k++;
+			}
 		}
 	}
 
@@ -305,25 +318,58 @@ void CFontManagerDlg::InserItemFont(CString strKey)
 	return;
 }
 
+// 复选按钮不可用
+void CFontManagerDlg::CantUseDoubleCheck( )
+{
+	// 复选框方式、未选择状态
+	m_CheckDouble.SetCheck(0);
+
+	// 点击按钮复选框变灰
+	// 设置为未选择状态
+	m_Double_CheckB.SetCheck(0);
+	m_Double_CheckC.SetCheck(0);
+	m_Double_CheckD.SetCheck(0);
+	// 复选框BCD不可用
+	m_Double_CheckB.EnableWindow(FALSE);
+	m_Double_CheckC.EnableWindow(FALSE);
+	m_Double_CheckD.EnableWindow(FALSE);
+}
+
+// 单选按钮不可用
+void CFontManagerDlg::CantUseOneCheck( )
+{
+	// 单选按钮方式均设置为未选择状态
+	m_CheckOne.SetCheck(0);
+
+	// 清空单选按钮选项
+	m_Radio_B.SetCheck(FALSE);
+	m_Radio_C.SetCheck(FALSE);
+	m_Radio_D.SetCheck(FALSE);
+	m_Radio_All.SetCheck(FALSE);
+	// 单选按钮不可用
+	m_Radio_B.EnableWindow(FALSE);
+	m_Radio_C.EnableWindow(FALSE);
+	m_Radio_D.EnableWindow(FALSE);
+	m_Radio_All.EnableWindow(FALSE);
+}
+
 // 单击B按钮
 void CFontManagerDlg::OnBnClickedButtonB()
 {
 	// TODO: 在此添加控件通知处理程序代码
-
 	// 暂时全部删除
 	m_List_Left.DeleteAllItems();
 	m_List_Right.DeleteAllItems();
-	UpdateData(FALSE);
 
 	CString strKey ;	//声明索引
 	strKey.Format(_T("B"));
 	// 字库内容插入列表
 	InserItemFont(strKey);
 
-	// 复选框方式、单选按钮方式均设置为未选择状态
-	m_CheckDouble.SetCheck(0);
-	m_CheckOne.SetCheck(0);
-	OnBnClickedCheckDouble();
+	// 复选框初始不可用
+	CantUseDoubleCheck();
+	// 单选初始不可用，无默认选项
+	CantUseOneCheck();
 
 	strFontkey = strKey;	// 记录列表框数据名称
 
@@ -344,14 +390,12 @@ void CFontManagerDlg::OnBnClickedButtonC()
 	// 字库内容插入列表
 	InserItemFont(strKey);
 
-	// 复选框方式、单选按钮方式均设置为未选择状态
-	m_CheckDouble.SetCheck(0);
-	m_CheckOne.SetCheck(0);
-
-	OnBnClickedCheckDouble();
+	// 复选框初始不可用
+	CantUseDoubleCheck();
+	// 单选初始不可用，无默认选项
+	CantUseOneCheck();
 
 	strFontkey = strKey;	// 记录列表框数据名称
-
 	UpdateData(FALSE);
 }
 
@@ -368,11 +412,10 @@ void CFontManagerDlg::OnBnClickedButtonD()
 
 	// 字库内容插入列表
 	InserItemFont(strKey);
-
-	// 复选框方式、单选按钮方式均设置为未选择状态
-	m_CheckDouble.SetCheck(0);
-	m_CheckOne.SetCheck(0);
-	OnBnClickedCheckDouble();
+	// 复选框初始不可用
+	CantUseDoubleCheck();
+	// 单选初始不可用，无默认选项
+	CantUseOneCheck();
 
 	strFontkey = strKey;	// 记录列表框数据名称
 
@@ -394,6 +437,11 @@ void CFontManagerDlg::OnCbnSelchangeComboFont()
 		// 清空左右列表框
 		m_List_Left.DeleteAllItems();
 		m_List_Right.DeleteAllItems();
+
+		// 复选框初始不可用
+		CantUseDoubleCheck();
+		// 单选初始不可用，无默认选项
+		CantUseOneCheck();
 	}
 	// 选 B 时对应显示右边列表框
 	if ( nChoice == 1)
@@ -416,6 +464,17 @@ void CFontManagerDlg::OnCbnSelchangeComboFont()
 void CFontManagerDlg::OnBnClickedCheckDouble()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	// 先清空之前的内容
+	m_List_Left.DeleteAllItems();
+	m_List_Right.DeleteAllItems();
+
+	UpdateData(FALSE);
+
+	// 加入字库、删除字库按钮可用
+	GetDlgItem(IDC_BUTTON_Add)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON_Delete)->EnableWindow(TRUE);
+
+	UpdateData(FALSE);
 	// 获取复选框的选中状态
 	int nCheck = m_CheckDouble.GetCheck();
 	if (nCheck == 0)	// 未选中
@@ -439,6 +498,10 @@ void CFontManagerDlg::OnBnClickedCheckDouble()
 		m_Double_CheckC.EnableWindow(TRUE);
 		m_Double_CheckD.EnableWindow(TRUE);
 	}
+
+	// 单选不可用，无默认选项
+	CantUseOneCheck();
+
 	UpdateData(FALSE);
 	return;
 }
@@ -449,7 +512,7 @@ void CFontManagerDlg::OnBnClickedCheckB()
 	// TODO: 在此添加控件通知处理程序代码
 	CString strKey ;	//声明索引
 	strKey.Format(_T("B"));
-	int nIsCheckB = m_Double_CheckC.GetCheck();
+	int nIsCheckB = m_Double_CheckB.GetCheck();
 
 	// 根据复选框状态显示字库
 	ISClickedCheck(nIsCheckB, strKey);
@@ -462,6 +525,8 @@ void CFontManagerDlg::OnBnClickedCheckC()
 	CString strKey ;	//声明索引
 	strKey.Format(_T("C"));
 	int nIsCheckC = m_Double_CheckC.GetCheck();
+	// 根据复选框状态显示字库
+	ISClickedCheck(nIsCheckC, strKey);
 
 }
 
@@ -469,39 +534,74 @@ void CFontManagerDlg::OnBnClickedCheckC()
 void CFontManagerDlg::OnBnClickedCheckD()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CString strKey ;	//声明索引
+	strKey.Format(_T("D"));
+	int nIsCheckD = m_Double_CheckD.GetCheck();
+	// 根据复选框状态显示字库
+	ISClickedCheck(nIsCheckD, strKey);
 }
 
 // 根据复选框状态显示字库
 void CFontManagerDlg::ISClickedCheck(int nIsCheck, CString strKey)
 {
-	// 提取对应字库到容器 FontList
-	 //pInfoCtrl.GetFont(strKey , FontList);	
+	// 单击复选框就全部删除
+	m_List_Left.DeleteAllItems();
+	m_List_Right.DeleteAllItems();
 
+	//UpdateData(FALSE);
+
+	// 判断各复选框状态 
 	int nCheckB = m_Double_CheckB.GetCheck();
-	int nCheckC = m_Double_CheckB.GetCheck();
-	int nCheckD = m_Double_CheckB.GetCheck();
-	int nCheck = nCheckB + nCheckC + nCheckD;	// 判断选中了几个复选框
+	int nCheckC = m_Double_CheckC.GetCheck();
+	int nCheckD = m_Double_CheckD.GetCheck();
 
-	if (nCheck > 1)
+	// 计算选中了几个复选框
+	int nCheck = nCheckB + nCheckC + nCheckD;	// 判断选中了几个复选框
+	if (nCheck > 1)		// 复选框大于 1
 	{
 		// 加入字库、删除字库按钮不可用
 		GetDlgItem(IDC_BUTTON_Add)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BUTTON_Delete)->EnableWindow(FALSE);
 	}
-
-	if (nIsCheck == FALSE)	// 原来未选中,单击选中加入字库
-	{	
-		InserItemFont(strKey);
+	if (nCheck == 1)	// 只选了一个复选框，加入删除可用
+	{
+		// 加入字库、删除字库按钮可用
+		GetDlgItem(IDC_BUTTON_Add)->EnableWindow(TRUE);
+		GetDlgItem(IDC_BUTTON_Delete)->EnableWindow(TRUE);
 	}
-	if (nIsCheck == TRUE)	// 原来选中，单击取消选中，将对应数据撤出字库
-	{	
-		// 暂时全部删除
-		m_List_Left.DeleteAllItems();
-		m_List_Right.DeleteAllItems();
+	if (nCheckB == TRUE)
+	{
+		CString strKeyB;
+		strKeyB.Format(_T("B"));
+		InserItemFont(strKeyB);
 		UpdateData(FALSE);
-
-
 	}
+	if (nCheckC == TRUE)
+	{
+		CString strKeyC;
+		strKeyC.Format(_T("C"));
+		InserItemFont(strKeyC);
+		UpdateData(FALSE);
+	}
+	if (nCheckD == TRUE)
+	{
+		CString strKeyD;
+		strKeyD.Format(_T("D"));
+		InserItemFont(strKeyD);
+		UpdateData(FALSE);
+	}
+
+	// 清空单选按钮选项
+	m_Radio_B.SetCheck(FALSE);
+	m_Radio_C.SetCheck(FALSE);
+	m_Radio_D.SetCheck(FALSE);
+	m_Radio_All.SetCheck(FALSE);
+	// 单选按钮不可用
+	m_Radio_B.EnableWindow(FALSE);
+	m_Radio_C.EnableWindow(FALSE);
+	m_Radio_D.EnableWindow(FALSE);
+	m_Radio_All.EnableWindow(FALSE);
+
 	UpdateData(FALSE);
 	return;
 }
@@ -510,16 +610,22 @@ void CFontManagerDlg::ISClickedCheck(int nIsCheck, CString strKey)
 void CFontManagerDlg::OnBnClickedCheckOne()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	// 先清空之前的内容
+	m_List_Left.DeleteAllItems();
+	m_List_Right.DeleteAllItems();
+
+	UpdateData(FALSE);
+
 	// 获取复选框的选中状态
 	int nCheck = m_CheckOne.GetCheck();
 	if (nCheck == 0)	// 单选框按钮方式未选中
 	{	
-		// 清空选项
+		// 清空单选按钮选项
 		m_Radio_B.SetCheck(FALSE);
 		m_Radio_C.SetCheck(FALSE);
 		m_Radio_D.SetCheck(FALSE);
 		m_Radio_All.SetCheck(FALSE);
-		// 不可用
+		// 单选按钮不可用
 		m_Radio_B.EnableWindow(FALSE);
 		m_Radio_C.EnableWindow(FALSE);
 		m_Radio_D.EnableWindow(FALSE);
@@ -534,7 +640,8 @@ void CFontManagerDlg::OnBnClickedCheckOne()
 		m_Radio_All.EnableWindow(TRUE);
 
 	}
-	
+	// 复选框初始不可用
+	CantUseDoubleCheck();
 	UpdateData(FALSE);
 	return;
 }
@@ -550,11 +657,8 @@ void CFontManagerDlg::OnBnClickedRadioB()
 
 	CString strKey ;	//声明索引
 	strKey.Format(_T("B"));
-	cFontKey.Format(_T("B"));
 	// 字库内容插入列表
 	InserItemFont(strKey);
-
-	//cFontKey ='B';	// 记录列表框数据名称
 
 	// 加入字库、删除字库按钮可用
 	GetDlgItem(IDC_BUTTON_Add)->EnableWindow(TRUE);
@@ -567,12 +671,42 @@ void CFontManagerDlg::OnBnClickedRadioB()
 void CFontManagerDlg::OnBnClickedRadioC()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	// 单选，先清空之前的内容
+	m_List_Left.DeleteAllItems();
+	m_List_Right.DeleteAllItems();
+	UpdateData(FALSE);
+
+	CString strKey ;	//声明索引
+	strKey.Format(_T("C"));
+	// 字库内容插入列表
+	InserItemFont(strKey);
+
+	// 加入字库、删除字库按钮可用
+	GetDlgItem(IDC_BUTTON_Add)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON_Delete)->EnableWindow(TRUE);
+
+	UpdateData(FALSE);
 }
 
 // 单击单选框D
 void CFontManagerDlg::OnBnClickedRadioD()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	// 单选，先清空之前的内容
+	m_List_Left.DeleteAllItems();
+	m_List_Right.DeleteAllItems();
+	UpdateData(FALSE);
+
+	CString strKey ;	//声明索引
+	strKey.Format(_T("D"));
+	// 字库内容插入列表
+	InserItemFont(strKey);
+
+	// 加入字库、删除字库按钮可用
+	GetDlgItem(IDC_BUTTON_Add)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON_Delete)->EnableWindow(TRUE);
+
+	UpdateData(FALSE);
 }
 
 // 单击单选框全部
@@ -600,21 +734,40 @@ void CFontManagerDlg::OnBnClickedRadioAll()
 	UpdateData(FALSE);
 }
 
-
-// 更改Left列表框选项
-void CFontManagerDlg::OnLvnItemchangedListLeft(NMHDR *pNMHDR, LRESULT *pResult)
+// 单击左边列表更新界面
+void CFontManagerDlg::OnNMClickListLeft(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 	// TODO: 在此添加控件通知处理程序代码
-	// 先清空原有的内容
-	//m_strEditFont = '\0';
-	UpdateData(FALSE);
+	UpdateData(TRUE);
 
 	CString strText;
 	// 获取列表框中选中的索引
 	int nItem = m_List_Left.GetSelectionMark();
 	// 获取该索引的内容
 	strText = m_List_Left.GetItemText(nItem, 0);
+
+	// m_List_Left.GetItemData(nItem);
+	// 将内容添加到编辑框
+	m_strEditFont = strText;
+	//SetDlgItemText(IDC_EDIT_Font, strText);
+
+	UpdateData(FALSE);
+	*pResult = 0;
+}
+
+// 单击右边列表更新界面
+void CFontManagerDlg::OnNMClickListRight(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	// TODO: 在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+
+	CString strText;
+	// 获取列表框中选中的索引
+	int nItem = m_List_Right.GetSelectionMark();
+	// 获取该索引的内容
+	strText = m_List_Right.GetItemText(nItem, 0);
 
 	// m_List_Left.GetItemData(nItem);
 	// 将内容添加到编辑框
@@ -637,12 +790,8 @@ void CFontManagerDlg::OnBnClickedButtonAdd()
 		return;
 	}
 
-	// 列表框总数
-	/*int nItem = m_List_Left.GetItemCount();*/
-	// 新加的内容插入末尾
-	//m_List_Left.InsertItem((nItem+1), m_strEditFont);
-
-	 if (pInfoCtrl.FindFont(strFontkey, m_strEditFont) == TRUE)
+	// 判断是否已存在
+	if (pInfoCtrl.FindFont(strFontkey, m_strEditFont) == TRUE)
 	 {
 		 MessageBox(TEXT("添加的内容已存在！！"));
 	 }
@@ -703,22 +852,33 @@ void CFontManagerDlg::LoadListCtrl()
 		MessageBox(_T("该字库无内容！！！"));
 		return;
 	}
-	// 将字库内容的前15个插入左边
-	for (int i = 0; i < 15; i++)
-	{
-		m_List_Left.InsertItem(i, FontList.at(i));	
-	}
-	if (nSize >= 15)	// 若大于15个，把剩余内容插入到右边
+	if (nSize < 15)
 	{
 		for (int i = 0; i < nSize; i++)
 		{
-			m_List_Right.InsertItem(i, FontList.at(i));
+			m_List_Left.InsertItem(i, FontList.at(i));	
+		}
+	}
+
+	if (nSize >= 15)	// 若大于15个，前15个插入左边,剩余内容插入到右边
+	{
+		for (int i = 0; i < 15; i++)
+		{
+			m_List_Left.InsertItem(i, FontList.at(i));	
+		}
+
+		for (int j = 15; j < nSize; j++)
+		{
+			int k = 0;
+			m_List_Right.InsertItem(k, FontList.at(j));
+			k++;
 		}
 	}
 
 	// 保存按钮为亮
 	GetDlgItem(IDC_BUTTON_Save)->EnableWindow(TRUE);
 
+	m_strEditFont = '\0' ;
 	UpdateData(FALSE);	//	刷新列表框
 
 	isOK = false;	// 记录修改

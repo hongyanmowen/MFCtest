@@ -22,7 +22,7 @@ public:
 	void ReadFile();
 	//保存数据到文件中，写函数
 	void WriteFile(CString path);
-	void WriteFile();
+	int WriteFile();
 	//查找函数,第二个参数用来指定B,C,D,E...等类别
 	int Find(char type, CString s, int& tIndex, int& sIndex);
 	//删除函数
@@ -43,6 +43,10 @@ public:
 	int FindNamePos(CString s, int typePos);
 	//查询类型指针（bcd类别）在容器中的索引
 	int FindTypePos(char type);
+	//若为小写则转为大写
+	char MyToUp(char type);
+
+
 private:
 	Dicts m_vDicts;							//存储studicts指针的vector容器
 	CString FilePath;						//存储要打开的文件的路径

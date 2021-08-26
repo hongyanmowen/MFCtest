@@ -15,6 +15,7 @@ CInfoCtrl::~CInfoCtrl(void)
 
 void CInfoCtrl::GetFont(char strKey, std::vector<CString>& FontList)
 {
+	//直接用数据类对象的方法来完成需求，将strKey对应的所有数据放入容器FontList中
 	FontList = m_cData.GetAll(strKey);
 	return;
 }
@@ -35,7 +36,12 @@ BOOL CInfoCtrl::FindDeleFont(CString cFontKey, CString strFind)
 
 BOOL CInfoCtrl::FindFont(CString strkey, CString strFind)
 {
-	if (m_cData.FindNamePos(strFind, strkey[0]))
+	int tIndex = m_cData.FindTypePos(strkey[0]);
+	if (tIndex < 0)
+	{
+		return FALSE;
+	}
+	if (m_cData.FindNamePos(strFind, tIndex) >= 0)
 	{
 		return TRUE;
 	}
@@ -57,5 +63,9 @@ BOOL CInfoCtrl::DeleFont(CString strkey, CString strFind)
 
 BOOL CInfoCtrl::saveFont()
 {
-	return TRUE;
+	if(m_cData.WriteFile())
+	{
+		return TRUE;
+	}
+	return FALSE;
 }

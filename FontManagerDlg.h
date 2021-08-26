@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "AppData.h"
+
 #include "afxwin.h"
 #include "afxcmn.h"
 
@@ -75,6 +75,11 @@ public:
 	// 将字库插入列表框
 	afx_msg void InserItemFont(CString strKey);
 
+	// 复选按钮不可用
+	afx_msg void CantUseDoubleCheck( );
+	// 单选按钮不可用
+	afx_msg void CantUseOneCheck( );
+
 	// 单击B、C、D按钮事件
 	afx_msg void OnBnClickedButtonB();
 	afx_msg void OnBnClickedButtonC();
@@ -102,8 +107,11 @@ public:
 	afx_msg void OnBnClickedRadioAll();
 
 	// 更改列表框选项
-	afx_msg void OnLvnItemchangedListLeft(NMHDR *pNMHDR, LRESULT *pResult);
-	
+	// afx_msg void OnLvnItemchangedListLeft(NMHDR *pNMHDR, LRESULT *pResult);
+	// 单击列表框选项
+	afx_msg void OnNMClickListLeft(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnNMClickListRight(NMHDR *pNMHDR, LRESULT *pResult);
+
 	// 加入字库按钮
 	afx_msg void OnBnClickedButtonAdd();
 	// 删除字库按钮

@@ -108,7 +108,7 @@ void CData::WriteFile(CString path)
 
 }
 
-void CData::WriteFile()
+int CData::WriteFile()
 {
 	CStdioFile file;
 	CFileException exp;
@@ -120,7 +120,7 @@ void CData::WriteFile()
 		CString sMsg;
 		exp.GetErrorMessage(sMsg.GetBuffer(1024),1024);
 		sMsg.ReleaseBuffer();
-		return;
+		return false;
 	}
 
 	//创建一个关联容器来关联_class_name和需要写入文件的开头文字#BEGIN_[B]...
@@ -133,18 +133,20 @@ void CData::WriteFile()
 	endstr['D'] = _T("#END_[D]");
 	CString writestr;
 	int classSize = m_vDicts.end() - m_vDicts.begin();
-	int i = 0;
-	int j = 0;
+	unsigned int i = 0;
+	unsigned int j = 0;
 	for (i; i < classSize; ++i)
 	{
 		file.WriteString(startstr[m_vDicts[i]->_class_name]);
-
+		file.WriteString(_T("\n"));
 		for (j = 0; j < m_vDicts[i]->_names.size(); ++j)
 		{
 			file.WriteString(m_vDicts[i]->_names[j]);
+			file.WriteString(_T("\n"));
 		}
 
 		file.WriteString(endstr[m_vDicts[i]->_class_name]);
+		file.WriteString(_T("\n"));
 	}
 
 	//还原语言区域的设置和还原区域设定
@@ -152,6 +154,7 @@ void CData::WriteFile()
 	free(old_locale);
 
 	file.Close();
+	return true;
 }
 
 //如果找不到对应名称，则返回错误宏,如果找到了，则参数tIndex中存储类型索引，sIndex中存储名称容器中的索引
@@ -174,7 +177,7 @@ int CData::Del(CString s, char type)
 {
 	int tPos = 0;
 	int sPos = 0;
-	
+
 	if (Find(type, s, tPos, sPos))
 	{
 		m_vDicts[tPos]->_names.erase(m_vDicts[tPos]->_names.begin() + sPos);
@@ -219,7 +222,8 @@ std::vector<CString> CData::GetAll(char type)
 	int pos = FindTypePos(type);
 	if (pos == -1)
 	{
-		return m_vDicts[-1]->_names;;
+		std::vector<CString> null;
+		return null;
 	}
 	return m_vDicts[pos]->_names;
 }
@@ -246,28 +250,38 @@ int CData::FindNamePos(CString s, int typePos)
 	while ((m_vDicts[typePos]->_names[i]) != s)
 	{
 		++i;
-	}
-	if(i >= m_vDicts[typePos]->_names.size())
-	{
-		return -1;
-	}
 
+		if(i >= m_vDicts[typePos]->_names.size())
+		{
+			return -1;
+		}
+	}
 	return i;
 }
 
 int CData::FindTypePos(char type)
 {
 	int i = 0;
+	type = MyToUp(type);
+
+
 	while (m_vDicts[i]->_class_name != type)
 	{
 		i++;
+		if (i >= m_vDicts.size())
+		{
+			return -1;
+		}
 	}
-
-	if (i >= m_vDicts.size())
-	{
-		return -1;
-	}
-
 	return i;
+}
+
+char CData::MyToUp(char type)
+{
+	if (type > 'a' && type < 'z')
+	{
+		type = toupper(type);
+	}	
+	return type;
 }
 
